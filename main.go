@@ -1,14 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/pkg/browser"
 )
@@ -89,6 +90,7 @@ func doGetRequest(url, token string) (*http.Response, error) {
 type CourseModel struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
+	Sub  string `json:"subject"`
 }
 type Response struct {
 	Courses []CourseModel `json:"courses"`
@@ -110,7 +112,7 @@ func listCourses(token string) {
 		fmt.Println("parse err")
 	}
 	for _, course := range response.Courses {
-		fmt.Printf("ID: %s, Name: %s\n", course.Id, course.Name)
+		fmt.Printf("ID: %s, Name: %s, Subject: %s\n", course.Id, course.Name, course.Sub)
 	}
 }
 
@@ -163,20 +165,36 @@ type MaterialModel struct {
 }
 
 func main() {
-	var list bool
-	var courseId string
-	flag.BoolVar(&list, "list", false, "lists all courses")
-	flag.BoolVar(&list, "l", false, "lists all courses")
-	flag.StringVar(&courseId, "m", "", "list materials in this course")
-	flag.StringVar(&courseId, "materials", "", "list materials in this course")
-	flag.Parse()
-	if list {
-		token := generateToken()
-		listCourses(token)
-	} else if courseId != "" {
-		token := generateToken()
-		listMaterialsInCourse(token, courseId)
-	} else {
-		fmt.Println("no flag provided")
+	token := generateToken()
+	var action string
+	var param string
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print("== hello there ==\n")
+	for {
+		fmt.Print("Available actions:\n")
+		fmt.Print(" list courses [list]\n")
+		fmt.Print(" list materials [choose <id>]\n")
+		fmt.Print(" quit [q]\n")
+		fmt.Print(">> ")
+		scanner.Scan()
+		parts := strings.Fields(scanner.Text())
+		if len(parts) > 0 {
+			action = parts[0]
+		}
+		if len(parts) > 1 {
+			param = parts[1]
+		}
+		if action == "q" {
+			return
+		}
+		if action == "list" {
+			fmt.Println("======================================")
+			listCourses(token)
+			fmt.Println("======================================")
+		} else if action == "choose" && param != "" {
+			fmt.Println("======================================")
+			listMaterialsInCourse(token, param)
+			fmt.Println("======================================")
+		}
 	}
 }
