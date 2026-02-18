@@ -8,7 +8,7 @@ import (
 	"github.com/classroom-cli/internal/models"
 )
 
-func ListCourses(token string) {
+func ListCourses(token string) models.CourseResponse {
 	baseUrl := "https://classroom.googleapis.com/v1/courses"
 	res, err := DoGetRequest(baseUrl, token)
 	if err != nil {
@@ -19,17 +19,15 @@ func ListCourses(token string) {
 	if err != nil {
 		fmt.Println("body read err")
 	}
-	var response models.Response
+	var response models.CourseResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
 		fmt.Println("parse err")
 	}
-	for _, course := range response.Courses {
-		fmt.Printf("ID: %s, Name: %s, Subject: %s\n", course.Id, course.Name, course.Sub)
-	}
+	return response
 }
 
-func ListMaterialsInCourse(token string, courseId string) {
+func ListMaterialsInCourse(token string, courseId string) models.MaterialModel {
 	baseUrl := fmt.Sprintf("https://classroom.googleapis.com/v1/courses/%s/courseWorkMaterials", courseId)
 	res, err := DoGetRequest(baseUrl, token)
 	if err != nil {
@@ -41,21 +39,11 @@ func ListMaterialsInCourse(token string, courseId string) {
 		fmt.Println("body read err")
 	}
 	materialModel := models.MaterialModel{}
-	json.Unmarshal(bodyBytes, &materialModel)
-	for _, cw := range materialModel.CourseWorkMaterial {
-		fmt.Println("CourseWork ID:", cw.ID)
-		fmt.Println("Title:", cw.Title)
-
-		for _, mat := range cw.Materials {
-			file := mat.DriveFile.DriveFile
-
-			fmt.Println("  File ID:", file.ID)
-			fmt.Println("  File Title:", file.Title)
-			fmt.Println("  Link:", file.AlternateLink)
-			fmt.Println("  Share Mode:", mat.DriveFile.ShareMode)
-			fmt.Println()
-		}
+	err = json.Unmarshal(bodyBytes, &materialModel)
+	if err != nil {
+		fmt.Println("parse error")
 	}
+	return materialModel
 
 }
 

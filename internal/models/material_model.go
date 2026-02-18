@@ -1,19 +1,21 @@
 package models
 
 type MaterialModel struct {
-	CourseWorkMaterial []struct {
-		ID        string `json:"id"`
-		Title     string `json:"title"`
-		Materials []struct {
+	Materials []CourseWorkMaterial `json:"courseWorkMaterial"`
+}
+
+type CourseWorkMaterial struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Materials []struct {
+		DriveFile struct {
 			DriveFile struct {
-				DriveFile struct {
-					ID            string `json:"id"`
-					Title         string `json:"title"`
-					AlternateLink string `json:"alternateLink"`
-				} `json:"driveFile"`
-				ShareMode string `json:"shareMode"`
+				ID            string `json:"id"`
+				Title         string `json:"title"`
+				AlternateLink string `json:"alternateLink"`
 			} `json:"driveFile"`
-		} `json:"materials"`
-		AlternateLink string `json:"alternateLink"`
-	} `json:"courseWorkMaterial"`
+			ShareMode string `json:"shareMode"`
+		} `json:"driveFile"`
+	} `json:"materials"`
+	AlternateLink string `json:"alternateLink"`
 }
