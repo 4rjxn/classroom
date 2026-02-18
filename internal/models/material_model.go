@@ -5,9 +5,10 @@ type MaterialModel struct {
 }
 
 type CourseWorkMaterial struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Materials []struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Materials   []struct {
 		DriveFile struct {
 			DriveFile struct {
 				ID            string `json:"id"`

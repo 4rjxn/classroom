@@ -1,9 +1,8 @@
 package ui
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss/list"
 	"github.com/classroom-cli/internal/domain"
 	"github.com/classroom-cli/internal/models"
 )
@@ -13,15 +12,17 @@ type ViewState int
 const (
 	menueView ViewState = iota
 	courseView
-	materialsView
+	courseDetailsView
 )
 
 type UiStateModel struct {
-	State     ViewState
-	Token     string
-	courses   []models.CourseModel
-	materials []models.CourseWorkMaterial
-	cursor    int
+	State         ViewState
+	Token         string
+	courses       []models.CourseModel
+	materials     []models.CourseWorkMaterial
+	announcements []models.CourseAnnouncement
+	cursor        int
+	isMaterial    bool
 }
 
 func (m UiStateModel) Init() tea.Cmd {
@@ -52,8 +53,14 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.State = courseView
 				m.courses = domain.ListCourses(m.Token).Courses
 			case courseView:
-				m.State = materialsView
+				m.State = courseDetailsView
 				m.materials = domain.ListMaterialsInCourse(m.Token, m.courses[m.cursor].Id).Materials
+				m.announcements = domain.ListAnnouncementsInCourse(m.Token, m.courses[m.cursor].Id).Announcements
+			}
+		case "tab":
+			switch m.State {
+			case courseDetailsView:
+				m.isMaterial = !m.isMaterial
 			}
 		}
 	}
@@ -66,28 +73,44 @@ func (m UiStateModel) View() string {
 	case menueView:
 		return ">>>"
 	case courseView:
-		var courseList strings.Builder
-		for index, course := range m.courses {
-			courseList.WriteString("  ")
-			if index == m.cursor {
-				courseList.WriteString("* ")
-			}
-			courseList.WriteString(course.Name)
-			courseList.WriteByte('\n')
+		var courseList []string
+		for _, course := range m.courses {
+			courseList = append(courseList, course.Name+" "+course.Sub)
 		}
-		return courseList.String()
-	case materialsView:
-		var materialList strings.Builder
-		for index, materials := range m.materials {
-			materialList.WriteString("  ")
+		return list.New(courseList).Enumerator(func(items list.Items, index int) string {
 			if index == m.cursor {
-				materialList.WriteString("* ")
+				return ">"
 			}
-			materialList.WriteString(materials.Title)
-			materialList.WriteByte('\n')
-		}
-		return materialList.String()
+			return ""
+		}).String()
 
+	case courseDetailsView:
+		if m.isMaterial {
+			parentList := list.New()
+			for _, materials := range m.materials {
+				parentList.Item(materials.Title + "\n  " + materials.Description)
+			}
+			parentList.Enumerator(func(items list.Items, index int) string {
+				if index == m.cursor {
+					return ">"
+				}
+				return ""
+			})
+			return parentList.String()
+		} else {
+			parentList := list.New()
+			for _, announs := range m.announcements {
+				parentList.Item(announs.Text)
+			}
+			parentList.Enumerator(func(items list.Items, index int) string {
+				if index == m.cursor {
+					return ">"
+				}
+				return ""
+			})
+			return parentList.String()
+
+		}
 	}
 	return ""
 }

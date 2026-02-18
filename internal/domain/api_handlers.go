@@ -47,7 +47,7 @@ func ListMaterialsInCourse(token string, courseId string) models.MaterialModel {
 
 }
 
-func ListAnnouncementsInCourse(token string, courseId string) {
+func ListAnnouncementsInCourse(token string, courseId string) models.AnnouncementsModel {
 	baseUrl := fmt.Sprintf("https://classroom.googleapis.com/v1/courses/%s/announcements", courseId)
 	res, err := DoGetRequest(baseUrl, token)
 	if err != nil {
@@ -60,13 +60,6 @@ func ListAnnouncementsInCourse(token string, courseId string) {
 	}
 	announcementsModel := models.AnnouncementsModel{}
 	json.Unmarshal(bodyBytes, &announcementsModel)
-	for _, ann := range announcementsModel.Announcements {
-		fmt.Println("Text: ", ann.Text)
-		for _, material := range ann.Materials {
-			file := material.DriveFile.DriveFile
-			fmt.Println("  Title: ", file.Title)
-			fmt.Println("  Link: ", file.AlternateLink)
-		}
-	}
+	return announcementsModel
 
 }
