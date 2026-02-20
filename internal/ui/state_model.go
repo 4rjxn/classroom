@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/lipgloss/list"
 	"github.com/classroom-cli/internal/domain"
 	"github.com/classroom-cli/internal/models"
+	"github.com/pkg/browser"
 )
 
 type ViewState int
@@ -56,7 +57,19 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.State = courseDetailsView
 				m.materials = domain.ListMaterialsInCourse(m.Token, m.courses[m.cursor].Id).Materials
 				m.announcements = domain.ListAnnouncementsInCourse(m.Token, m.courses[m.cursor].Id).Announcements
+			case courseDetailsView:
+				if m.isMaterial {
+					for _, material := range m.materials[m.cursor].Materials {
+						browser.OpenURL(material.DriveFile.DriveFile.AlternateLink)
+					}
+				} else {
+					for _, announs := range m.announcements[m.cursor].Materials {
+						browser.OpenURL(announs.DriveFile.DriveFile.AlternateLink)
+					}
+
+				}
 			}
+			m.cursor = 0
 		case "tab":
 			switch m.State {
 			case courseDetailsView:
