@@ -84,7 +84,7 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m UiStateModel) View() string {
 	switch m.State {
 	case menueView:
-		return ">>>"
+		return "Welcome, to classroom.\n  Available Actions:\nEnter to choose\nJ and K for motion.\n"
 	case courseView:
 		var courseList []string
 		for _, course := range m.courses {

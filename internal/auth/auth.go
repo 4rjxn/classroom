@@ -9,16 +9,42 @@ import (
 	"net/url"
 
 	"github.com/classroom-cli/internal/models"
+	"github.com/classroom-cli/internal/utils"
 	"github.com/pkg/browser"
 )
 
-func GenerateToken(config models.Config) string {
-	type AuthResponce struct {
-		AccessToken string `json:"access_token"`
+var tokenUrl string = "https://oauth2.googleapis.com/token"
+var redirectUri string = "http://localhost:4321"
+
+type AuthResponce struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func OffileGeneration(config models.Config) string {
+	refreshToken := utils.ReadRefreshToken()
+	if refreshToken != "" {
+		res, err := http.PostForm(tokenUrl, url.Values{
+			"refresh_token": {refreshToken},
+			"client_id":     {config.ClientId},
+			"client_secret": {config.ClientSecret},
+			"redirect_uri":  {redirectUri},
+			"grant_type":    {"refresh_token"},
+		})
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer res.Body.Close()
+		body, err := io.ReadAll(res.Body)
+		aut := AuthResponce{}
+		json.Unmarshal(body, &aut)
+		return aut.AccessToken
+
 	}
+	return GenerateToken(config)
+}
+func GenerateToken(config models.Config) string {
 	baseUrl := "https://accounts.google.com/o/oauth2/v2/auth"
-	tokenUrl := "https://oauth2.googleapis.com/token"
-	redirectUri := "http://localhost:4321"
 	scope := "https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly https://www.googleapis.com/auth/classroom.announcements.readonly"
 	code := ""
 	authServerUrl, err := url.Parse(baseUrl)
@@ -32,7 +58,9 @@ func GenerateToken(config models.Config) string {
 	query.Add("client_id", clientId)
 	query.Add("redirect_uri", redirectUri)
 	query.Add("response_type", "code")
+	query.Add("access_type", "offline")
 	query.Add("scope", scope)
+	query.Add("prompt", "consent")
 
 	authServerUrl.RawQuery = query.Encode()
 	channel := make(chan bool)
@@ -68,6 +96,7 @@ func GenerateToken(config models.Config) string {
 
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
+	utils.StoreRefreshToken(body)
 	tokenData := AuthResponce{}
 	json.Unmarshal(body, &tokenData)
 	return tokenData.AccessToken

@@ -24,7 +24,7 @@ func ReadConfig(config *models.Config) {
 func main() {
 	var config models.Config
 	ReadConfig(&config)
-	token := auth.GenerateToken(config)
+	token := auth.OffileGeneration(config)
 	p := tea.NewProgram(ui.UiStateModel{Token: token, State: 0})
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error:", err)
