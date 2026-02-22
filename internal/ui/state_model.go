@@ -1,11 +1,12 @@
 package ui
 
 import (
+	"os/exec"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss/list"
 	"github.com/classroom-cli/internal/domain"
 	"github.com/classroom-cli/internal/models"
-	"github.com/pkg/browser"
 )
 
 type ViewState int
@@ -60,11 +61,11 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case courseDetailsView:
 				if m.isMaterial {
 					for _, material := range m.materials[m.cursor].Materials {
-						browser.OpenURL(material.DriveFile.DriveFile.AlternateLink)
+						exec.Command("xdg-open", material.DriveFile.DriveFile.AlternateLink).Start()
 					}
 				} else {
 					for _, announs := range m.announcements[m.cursor].Materials {
-						browser.OpenURL(announs.DriveFile.DriveFile.AlternateLink)
+						exec.Command("xdg-open", announs.DriveFile.DriveFile.AlternateLink).Start()
 					}
 
 				}
@@ -101,7 +102,7 @@ func (m UiStateModel) View() string {
 		if m.isMaterial {
 			parentList := list.New()
 			for _, materials := range m.materials {
-				parentList.Item(materials.Title + "\n  " + materials.Description)
+				parentList.Item(materials.Title)
 			}
 			parentList.Enumerator(func(items list.Items, index int) string {
 				if index == m.cursor {

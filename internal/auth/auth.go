@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os/exec"
 
 	"github.com/classroom-cli/internal/models"
 	"github.com/classroom-cli/internal/utils"
-	"github.com/pkg/browser"
 )
 
 var tokenUrl string = "https://oauth2.googleapis.com/token"
@@ -80,8 +80,7 @@ func GenerateToken(config models.Config) string {
 		}
 	}()
 
-	browser.OpenURL(authServerUrl.String())
-	server.ListenAndServe()
+	exec.Command("xdg-open", authServerUrl.String()).Start()
 
 	res, err := http.PostForm(tokenUrl, url.Values{
 		"code":          {code},
