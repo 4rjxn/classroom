@@ -6,28 +6,35 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/classroom-cli/internal/auth"
-	"github.com/classroom-cli/internal/models"
 	"github.com/classroom-cli/internal/ui"
-
-	"github.com/BurntSushi/toml"
+	"github.com/classroom-cli/internal/utils"
 )
 
-func ReadConfig(config *models.Config) {
-	fileName := "./config.toml"
-	_, err := os.Stat(fileName)
-	if err != nil {
-		panic("Config file croupted")
-	}
-	toml.DecodeFile(fileName, config)
-}
-
 func main() {
-	var config models.Config
-	ReadConfig(&config)
-	token := auth.OffileGeneration(config)
-	p := tea.NewProgram(ui.UiStateModel{Token: token, State: 0})
+	config, loadedPath, err := utils.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+
+	_ = loadedPath // successfully discovered config
+
+	token, err := auth.OfflineGeneration(config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Authentication error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if token == "" {
+		fmt.Fprintln(os.Stderr, "Error: received empty authorization token.")
+		os.Exit(1)
+	}
+
+	appModel := ui.NewUiStateModel(token, config)
+	p := tea.NewProgram(appModel, tea.WithAltScreen())
+
 	if _, err := p.Run(); err != nil {
-		fmt.Println("Error:", err)
+		fmt.Fprintf(os.Stderr, "Application error: %v\n", err)
 		os.Exit(1)
 	}
 }
