@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/classroom-cli/internal/domain"
-	"github.com/classroom-cli/internal/models"
+	"github.com/4rjxn/classroom/internal/domain"
+	"github.com/4rjxn/classroom/internal/models"
 )
 
 func TestDoGetRequest(t *testing.T) {

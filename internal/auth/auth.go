@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/classroom-cli/internal/models"
-	"github.com/classroom-cli/internal/utils"
+	"github.com/4rjxn/classroom/internal/models"
+	"github.com/4rjxn/classroom/internal/utils"
 	"github.com/pkg/browser"
 )
 

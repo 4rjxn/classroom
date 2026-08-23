@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/4rjxn/classroom/internal/models"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/classroom-cli/internal/models"
 )
 
 type ViewState int
@@ -747,7 +747,7 @@ func (m *UiStateModel) renderCoursesView() string {
 	footer := m.renderFooter()
 
 	// Height budget calculation
-	headerHeight := 1
+	headerHeight := 3
 	footerHeight := 1
 	searchHeight := 0
 
@@ -939,7 +939,7 @@ func (m *UiStateModel) renderCourseDetailView() string {
 	tabBarLine := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#111827")).Render(tabBar.String())
 
 	// Height budget calculation
-	headerHeight := 1
+	headerHeight := 3
 	tabBarHeight := 1
 	footerHeight := 1
 	cardHeight := m.height - headerHeight - tabBarHeight - footerHeight

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/classroom-cli/internal/domain"
-	"github.com/classroom-cli/internal/models"
+	"github.com/4rjxn/classroom/internal/domain"
+	"github.com/4rjxn/classroom/internal/models"
 	"github.com/pkg/browser"
 )
 

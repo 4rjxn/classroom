@@ -6,15 +6,26 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/4rjxn/classroom/internal/models"
 	"github.com/BurntSushi/toml"
-	"github.com/classroom-cli/internal/models"
+)
+
+var (
+	GOOGLE_CLIENT_ID     = ""
+	GOOGLE_CLIENT_SECRET = ""
 )
 
 // LoadConfig attempts to load the configuration from several standard locations or environment variables.
 func LoadConfig() (models.Config, string, error) {
 	var cfg models.Config
+	//1. Check for etched values
+	if GOOGLE_CLIENT_ID != "" && GOOGLE_CLIENT_SECRET != "" {
+		cfg.ClientId = GOOGLE_CLIENT_ID
+		cfg.ClientSecret = GOOGLE_CLIENT_SECRET
+		return cfg, "etched variables", nil
+	}
 
-	// 1. Check environment variables first
+	// 2. Check environment variables first
 	envID := os.Getenv("CLASSROOM_CLIENT_ID")
 	envSecret := os.Getenv("CLASSROOM_CLIENT_SECRET")
 	if envID != "" && envSecret != "" {
@@ -23,7 +34,7 @@ func LoadConfig() (models.Config, string, error) {
 		return cfg, "environment variables", nil
 	}
 
-	// 2. Candidate file paths
+	// 3. Candidate file paths
 	home, _ := os.UserHomeDir()
 	candidates := []string{
 		"./config.toml",

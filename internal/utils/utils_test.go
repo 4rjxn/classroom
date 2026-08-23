@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/classroom-cli/internal/utils"
+	"github.com/4rjxn/classroom/internal/utils"
 )
 
 func TestLoadConfigFromEnv(t *testing.T) {

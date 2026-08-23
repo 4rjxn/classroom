@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/classroom-cli/internal/models"
+	"github.com/4rjxn/classroom/internal/models"
 )
 
 // ListCourses retrieves all active and provisioned courses for the authenticated user.

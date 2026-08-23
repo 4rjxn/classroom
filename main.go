@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/4rjxn/classroom/internal/auth"
+	"github.com/4rjxn/classroom/internal/ui"
+	"github.com/4rjxn/classroom/internal/utils"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/classroom-cli/internal/auth"
-	"github.com/classroom-cli/internal/ui"
-	"github.com/classroom-cli/internal/utils"
 )
 
 func main() {

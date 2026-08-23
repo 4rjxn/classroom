@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/classroom-cli/internal/models"
+	"github.com/4rjxn/classroom/internal/models"
 )
 
 func TestDateAndDueString(t *testing.T) {
