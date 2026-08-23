@@ -1,2 +1,4 @@
 secret.txt
 config.toml
+# Added by goreleaser init:
+dist/
