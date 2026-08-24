@@ -3,6 +3,7 @@ package utils_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/4rjxn/classroom/internal/utils"
@@ -33,8 +34,13 @@ func TestLoadConfigFromEnv(t *testing.T) {
 func TestStoreAndReadToken(t *testing.T) {
 	tempHome := t.TempDir()
 	origHome := os.Getenv("HOME")
+	origUserProfile := os.Getenv("USERPROFILE")
 	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	os.Setenv("USERPROFILE", tempHome)
+	defer func() {
+		os.Setenv("HOME", origHome)
+		os.Setenv("USERPROFILE", origUserProfile)
+	}()
 
 	tokenJSON := []byte(`{"access_token":"sample-access","refresh_token":"sample-refresh","expires_in":3600}`)
 	err := utils.StoreTokenData(tokenJSON)
@@ -52,7 +58,9 @@ func TestStoreAndReadToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not stat secret file: %v", err)
 	}
-	if perm := info.Mode().Perm(); perm != 0600 {
-		t.Errorf("expected permissions 0600, got %v", perm)
+	if runtime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0600 {
+			t.Errorf("expected permissions 0600, got %v", perm)
+		}
 	}
 }
