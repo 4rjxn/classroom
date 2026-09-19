@@ -83,3 +83,22 @@ To obtain Google OAuth Credentials:
 
 	return cfg, "", errors.New(helpMsg)
 }
+
+
+func ResolveDownloadDir(cfg models.Config) string {
+	dir := cfg.DownloadDir
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "./downloads"
+		}
+		return filepath.Join(home, "Downloads")
+	}
+	if len(dir) > 0 && dir[0] == '~' {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			dir = filepath.Join(home, dir[1:])
+		}
+	}
+	return dir
+}

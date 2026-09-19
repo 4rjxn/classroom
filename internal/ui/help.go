@@ -36,6 +36,7 @@ func renderHelpModal(width int, height int) string {
 			keys: [][2]string{
 				{"o", "Open item / course in Google Classroom web"},
 				{"a / Enter", "Open attachments or open attachment picker"},
+				{"Ctrl+d", "Download Drive attachments to ~/Downloads"},
 				{"/ ", "Search and filter courses (in Courses view)"},
 				{"r / Ctrl+r", "Refresh data from Google Classroom"},
 				{"? ", "Toggle this help modal"},
