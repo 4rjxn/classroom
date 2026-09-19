@@ -29,6 +29,7 @@ var defaultScopes = []string{
 	"https://www.googleapis.com/auth/classroom.coursework.students.readonly",
 	"https://www.googleapis.com/auth/classroom.announcements.readonly",
 	"https://www.googleapis.com/auth/classroom.student-submissions.me.readonly",
+	"https://www.googleapis.com/auth/drive.readonly",
 }
 
 type AuthResponse struct {

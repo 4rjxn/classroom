@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/4rjxn/classroom/internal/models"
+	"github.com/4rjxn/classroom/internal/utils"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -37,33 +38,35 @@ type CourseDetailData struct {
 }
 
 type UiStateModel struct {
-	State             ViewState
-	Token             string
-	Config            models.Config
-	courses           []models.CourseModel
-	filteredCourses   []models.CourseModel
-	selectedCourseIdx int
-	courseOffset      int
-	activeTab         TabType
-	tabCursors        [4]int
-	tabOffsets        [4]int
-	courseData        map[string]*CourseDetailData
-	currentCourse     *models.CourseModel
-	spinner           spinner.Model
-	viewport          viewport.Model
-	searchInput       textinput.Model
-	searching         bool
-	loading           bool
-	loadingMsg        string
-	showHelp          bool
-	showPicker        bool
-	pickerCursor      int
-	pickerAttachments []models.Attachment
-	statusMsg         string
-	statusIsErr       bool
-	width             int
-	height            int
-	err               error
+	State              ViewState
+	Token              string
+	Config             models.Config
+	courses            []models.CourseModel
+	filteredCourses    []models.CourseModel
+	selectedCourseIdx  int
+	courseOffset       int
+	activeTab          TabType
+	tabCursors         [4]int
+	tabOffsets         [4]int
+	courseData         map[string]*CourseDetailData
+	currentCourse      *models.CourseModel
+	spinner            spinner.Model
+	viewport           viewport.Model
+	searchInput        textinput.Model
+	searching          bool
+	loading            bool
+	loadingMsg         string
+	showHelp           bool
+	showPicker         bool
+	pickerCursor       int
+	pickerAttachments  []models.Attachment
+	pickerDownloadMode bool
+	statusMsg          string
+	statusIsErr        bool
+	downloading        bool
+	width              int
+	height             int
+	err                error
 }
 
 func NewUiStateModel(token string, cfg models.Config) UiStateModel {
@@ -130,6 +133,19 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, flashStatusCmd("✓ Opened in browser", false))
 		}
 
+	case downloadStartedMsg:
+		m.downloading = true
+		m.statusMsg = "⬇ Downloading " + msg.FileName + "..."
+		m.statusIsErr = false
+
+	case downloadDoneMsg:
+		m.downloading = false
+		if msg.Err != nil {
+			cmds = append(cmds, flashStatusCmd(fmt.Sprintf("✗ Download failed: %v", msg.Err), true))
+		} else {
+			cmds = append(cmds, flashStatusCmd("✓ Saved to "+msg.SavedPath, false))
+		}
+
 	case coursesLoadedMsg:
 		m.loading = false
 		if msg.Err != nil {
@@ -180,6 +196,7 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "esc", "q":
 				m.showPicker = false
+				m.pickerDownloadMode = false
 			case "j", "down":
 				if m.pickerCursor < len(m.pickerAttachments)-1 {
 					m.pickerCursor++
@@ -190,9 +207,15 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "enter":
 				if len(m.pickerAttachments) > 0 && m.pickerCursor < len(m.pickerAttachments) {
-					target := m.pickerAttachments[m.pickerCursor].URL
+					attachment := m.pickerAttachments[m.pickerCursor]
 					m.showPicker = false
-					cmds = append(cmds, openBrowserCmd(target))
+					if m.pickerDownloadMode {
+						m.pickerDownloadMode = false
+						destDir := utils.ResolveDownloadDir(m.Config)
+						cmds = append(cmds, downloadAttachmentCmd(m.Token, attachment.DriveFileID, attachment.Title, destDir))
+					} else {
+						cmds = append(cmds, openBrowserCmd(attachment.URL))
+					}
 				}
 			}
 			return m, tea.Batch(cmds...)
@@ -376,6 +399,9 @@ func (m *UiStateModel) handleCourseDetailKeys(msg tea.KeyMsg) tea.Cmd {
 
 	case "a", "enter":
 		return m.handleAttachmentAction()
+
+	case "ctrl+d":
+		return m.handleDownloadAction()
 	}
 
 	return nil
@@ -477,6 +503,50 @@ func (m *UiStateModel) handleAttachmentAction() tea.Cmd {
 	} else {
 		m.pickerAttachments = atts
 		m.pickerCursor = 0
+		m.pickerDownloadMode = false
+		m.showPicker = true
+		return nil
+	}
+}
+
+func (m *UiStateModel) handleDownloadAction() tea.Cmd {
+	data := m.getCurrentCourseData()
+	cursor := m.tabCursors[m.activeTab]
+	var atts []models.Attachment
+
+	switch m.activeTab {
+	case tabAssignments:
+		if len(data.CourseWork) > cursor {
+			atts = data.CourseWork[cursor].GetAttachments()
+		}
+	case tabMaterials:
+		if len(data.Materials) > cursor {
+			atts = data.Materials[cursor].GetAttachments()
+		}
+	case tabAnnouncements:
+		if len(data.Announcements) > cursor {
+			atts = data.Announcements[cursor].GetAttachments()
+		}
+	case tabInfo:
+		return nil
+	}
+
+	var driveAtts []models.Attachment
+	for _, a := range atts {
+		if a.Type == "drive" && a.DriveFileID != "" {
+			driveAtts = append(driveAtts, a)
+		}
+	}
+
+	if len(driveAtts) == 0 {
+		return flashStatusCmd("ℹ No downloadable Drive attachments on this item", false)
+	} else if len(driveAtts) == 1 {
+		destDir := utils.ResolveDownloadDir(m.Config)
+		return downloadAttachmentCmd(m.Token, driveAtts[0].DriveFileID, driveAtts[0].Title, destDir)
+	} else {
+		m.pickerAttachments = driveAtts
+		m.pickerCursor = 0
+		m.pickerDownloadMode = true
 		m.showPicker = true
 		return nil
 	}
@@ -551,7 +621,7 @@ func (m *UiStateModel) updateDetailViewport() {
 				for i, a := range atts {
 					content.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, a.String()))
 				}
-				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' or Enter to open attachments") + "\n")
+				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' to open • Ctrl+d to download") + "\n")
 			}
 		}
 
@@ -577,7 +647,7 @@ func (m *UiStateModel) updateDetailViewport() {
 				for i, a := range atts {
 					content.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, a.String()))
 				}
-				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' or Enter to open attachments") + "\n")
+				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' to open • Ctrl+d to download") + "\n")
 			}
 		}
 
@@ -602,7 +672,7 @@ func (m *UiStateModel) updateDetailViewport() {
 				for i, a := range atts {
 					content.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, a.String()))
 				}
-				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' or Enter to open attachments") + "\n")
+				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' to open • Ctrl+d to download") + "\n")
 			}
 		}
 
@@ -729,6 +799,7 @@ func (m UiStateModel) renderFooter() string {
 			helpKeyStyle.Render("↑/↓") + helpDescStyle.Render(" items  ") +
 			helpKeyStyle.Render("d/u") + helpDescStyle.Render(" scroll  ") +
 			helpKeyStyle.Render("a/Enter") + helpDescStyle.Render(" attach  ") +
+			helpKeyStyle.Render("Ctrl+d") + helpDescStyle.Render(" download  ") +
 			helpKeyStyle.Render("o") + helpDescStyle.Render(" web  ") +
 			helpKeyStyle.Render("Esc") + helpDescStyle.Render(" back")
 	}
@@ -1137,7 +1208,12 @@ func (m UiStateModel) renderAttachmentPicker() string {
 		Foreground(colorWhite).
 		Background(colorPrimaryDim).
 		Padding(0, 2).
-		Render("📎 Select Attachment to Open in Browser")
+		Render(func() string {
+			if m.pickerDownloadMode {
+				return "⬇ Select File to Download"
+			}
+			return "📎 Select Attachment"
+		}())
 
 	content.WriteString(title + "\n\n")
 
@@ -1153,7 +1229,11 @@ func (m UiStateModel) renderAttachmentPicker() string {
 		}
 	}
 
-	content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorSubtle).Italic(true).Render("Press Enter to open • Esc to cancel"))
+	hint := "Press Enter to open • Esc to cancel"
+	if m.pickerDownloadMode {
+		hint = "Press Enter to download • Esc to cancel"
+	}
+	content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorSubtle).Italic(true).Render(hint))
 
 	return modalBoxStyle.Render(content.String())
 }

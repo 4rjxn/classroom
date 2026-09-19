@@ -4,9 +4,10 @@ import "fmt"
 
 // Attachment represents a generic resource attached to coursework, materials, or announcements.
 type Attachment struct {
-	Type  string // "drive", "youtube", "link", "form"
-	Title string
-	URL   string
+	Type        string // "drive", "youtube", "link", "form"
+	Title       string
+	URL         string
+	DriveFileID string 
 }
 
 // Icon returns an emoji icon based on the attachment type.
@@ -76,9 +77,10 @@ func (r RawMaterial) ToAttachment() (Attachment, bool) {
 			title = "Drive Attachment"
 		}
 		return Attachment{
-			Type:  "drive",
-			Title: title,
-			URL:   r.DriveFile.DriveFile.AlternateLink,
+			Type:        "drive",
+			Title:       title,
+			URL:         r.DriveFile.DriveFile.AlternateLink,
+			DriveFileID: r.DriveFile.DriveFile.ID,
 		}, true
 	}
 

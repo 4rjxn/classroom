@@ -29,6 +29,15 @@ type urlOpenedMsg struct {
 	Err error
 }
 
+type downloadStartedMsg struct {
+	FileName string
+}
+
+type downloadDoneMsg struct {
+	SavedPath string
+	Err       error
+}
+
 type statusMsg struct {
 	Text    string
 	IsError bool
@@ -123,5 +132,17 @@ func flashStatusCmd(text string, isError bool) tea.Cmd {
 		tea.Tick(4*time.Second, func(t time.Time) tea.Msg {
 			return clearStatusMsg{}
 		}),
+	)
+}
+
+func downloadAttachmentCmd(token, fileID, fileName, destDir string) tea.Cmd {
+	return tea.Batch(
+		func() tea.Msg {
+			return downloadStartedMsg{FileName: fileName}
+		},
+		func() tea.Msg {
+			savedPath, err := domain.DownloadDriveFile(token, fileID, fileName, destDir)
+			return downloadDoneMsg{SavedPath: savedPath, Err: err}
+		},
 	)
 }
