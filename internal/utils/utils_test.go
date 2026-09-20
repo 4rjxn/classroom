@@ -64,3 +64,28 @@ func TestStoreAndReadToken(t *testing.T) {
 		}
 	}
 }
+
+func TestSaveAndReadTheme(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	if got := utils.ReadTheme(); got != "" {
+		t.Errorf("expected empty theme when unset, got %q", got)
+	}
+
+	if err := utils.SaveTheme("tokyo-night"); err != nil {
+		t.Fatalf("SaveTheme: %v", err)
+	}
+	if got := utils.ReadTheme(); got != "tokyo-night" {
+		t.Errorf("ReadTheme = %q, want tokyo-night", got)
+	}
+
+	info, err := os.Stat(filepath.Join(home, ".classroom", "theme"))
+	if err != nil {
+		t.Fatalf("theme file missing: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("theme file permissions = %v, want 0600", perm)
+	}
+}

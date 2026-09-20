@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type TokenData struct {
@@ -84,4 +85,40 @@ func ClearToken() error {
 	}
 	secretFile := filepath.Join(dirPath, "secret.u")
 	return os.Remove(secretFile)
+}
+
+// Theme preference
+const themePrefFile = "theme"
+
+func themePrefPath() (string, error) {
+	dir, err := getCredentialsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, themePrefFile), nil
+}
+
+// ReadTheme returns the saved theme, or "" if none.
+func ReadTheme() string {
+	path, err := themePrefPath()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// SaveTheme persists the selected theme.
+func SaveTheme(name string) error {
+	path, err := themePrefPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(strings.TrimSpace(name)+"\n"), 0600)
 }

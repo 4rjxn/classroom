@@ -4,4 +4,5 @@ type Config struct {
 	ClientId     string `toml:"client_id" json:"client_id"`
 	ClientSecret string `toml:"client_secret" json:"client_secret"`
 	DownloadDir  string `toml:"download_dir" json:"download_dir"`
+	Theme        string `toml:"theme" json:"theme"`
 }

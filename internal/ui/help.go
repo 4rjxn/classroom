@@ -37,6 +37,7 @@ func renderHelpModal(width int, height int) string {
 				{"o", "Open item / course in Google Classroom web"},
 				{"a / Enter", "Open attachments or open attachment picker"},
 				{"Ctrl+d", "Download Drive attachments to ~/Downloads"},
+				{"t / T", "Cycle theme / browse all themes"},
 				{"/ ", "Search and filter courses (in Courses view)"},
 				{"r / Ctrl+r", "Refresh data from Google Classroom"},
 				{"? ", "Toggle this help modal"},
@@ -46,20 +47,12 @@ func renderHelpModal(width int, height int) string {
 	}
 
 	var content strings.Builder
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(colorWhite).
-		Background(colorPrimaryDim).
-		Padding(0, 2).
-		Render("⌨  Classroom CLI Keyboard Shortcuts")
+	title := modalTitleStyle.Render("⌨  Classroom CLI Keyboard Shortcuts")
 
 	content.WriteString(title + "\n\n")
 
 	for _, sec := range helpSections {
-		secTitle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(colorPrimary).
-			Render("▸ " + sec.title)
+		secTitle := breadcrumbActiveStyle.Render("▸ " + sec.title)
 		content.WriteString(secTitle + "\n")
 
 		for _, k := range sec.keys {
@@ -70,10 +63,7 @@ func renderHelpModal(width int, height int) string {
 		content.WriteString("\n")
 	}
 
-	hint := lipgloss.NewStyle().
-		Foreground(colorSubtle).
-		Italic(true).
-		Render("Press Esc or ? to return")
+	hint := modalHintStyle.Render("Press Esc or ? to return")
 	content.WriteString(hint)
 
 	box := modalBoxStyle.Render(content.String())

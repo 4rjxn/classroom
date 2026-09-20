@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 type ViewState int
@@ -57,6 +58,9 @@ type UiStateModel struct {
 	loading            bool
 	loadingMsg         string
 	showHelp           bool
+	showThemes         bool
+	themeCursor        int
+	themeBeforePicker  string
 	showPicker         bool
 	pickerCursor       int
 	pickerAttachments  []models.Attachment
@@ -70,9 +74,11 @@ type UiStateModel struct {
 }
 
 func NewUiStateModel(token string, cfg models.Config) UiStateModel {
+	applyTheme(resolveInitialTheme(cfg))
+
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(colorPrimary)
+	s.Style = spinnerStyle
 
 	ti := textinput.New()
 	ti.Placeholder = "Type to search courses... (Esc to cancel)"
@@ -191,7 +197,39 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// 2. Attachment Picker Modal Interceptions
+		// 2. Theme Picker Modal Interceptions
+		if m.showThemes {
+			switch msg.String() {
+			case "esc", "q":
+				if previous, ok := themeByName(m.themeBeforePicker); ok {
+					m.applyThemeLive(previous)
+				}
+				m.showThemes = false
+			case "j", "down":
+				if m.themeCursor < len(themes)-1 {
+					m.themeCursor++
+					m.applyThemeLive(themes[m.themeCursor])
+				}
+			case "k", "up":
+				if m.themeCursor > 0 {
+					m.themeCursor--
+					m.applyThemeLive(themes[m.themeCursor])
+				}
+			case "g", "home":
+				m.themeCursor = 0
+				m.applyThemeLive(themes[m.themeCursor])
+			case "G", "end":
+				m.themeCursor = len(themes) - 1
+				m.applyThemeLive(themes[m.themeCursor])
+			case "enter":
+				selected := themes[m.themeCursor]
+				m.showThemes = false
+				cmds = append(cmds, m.selectThemeCmd(selected))
+			}
+			return m, tea.Batch(cmds...)
+		}
+
+		// 3. Attachment Picker Modal Interceptions
 		if m.showPicker {
 			switch msg.String() {
 			case "esc", "q":
@@ -221,7 +259,7 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 
-		// 3. Search Mode Interceptions
+		// 4. Search Mode Interceptions
 		if m.searching {
 			switch msg.String() {
 			case "esc":
@@ -239,16 +277,26 @@ func (m UiStateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 
-		// 4. Global Hotkeys
+		// 5. Global Hotkeys
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "?":
 			m.showHelp = !m.showHelp
 			return m, nil
+		case "t":
+			next := cycleTheme()
+			m.applyThemeLive(next)
+			cmds = append(cmds, m.selectThemeCmd(next))
+			return m, tea.Batch(cmds...)
+		case "T":
+			m.showThemes = true
+			m.themeCursor = currentThemeIndex()
+			m.themeBeforePicker = activeTheme.Name
+			return m, nil
 		}
 
-		// 5. View-Specific Navigation
+		// 6. View-Specific Navigation
 		switch m.State {
 		case viewCourses:
 			cmd := m.handleCoursesKeys(msg)
@@ -619,9 +667,9 @@ func (m *UiStateModel) updateDetailViewport() {
 			if len(atts) > 0 {
 				content.WriteString(metaLabelStyle.Render(fmt.Sprintf("Attachments (%d):", len(atts))) + "\n")
 				for i, a := range atts {
-					content.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, a.String()))
+					content.WriteString("  " + attachmentItemStyle.Render(fmt.Sprintf("[%d] %s", i+1, a.String())) + "\n")
 				}
-				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' to open • Ctrl+d to download") + "\n")
+				content.WriteString("\n" + inlineHintStyle.Render("Press 'a' to open • Ctrl+d to download") + "\n")
 			}
 		}
 
@@ -645,9 +693,9 @@ func (m *UiStateModel) updateDetailViewport() {
 			if len(atts) > 0 {
 				content.WriteString(metaLabelStyle.Render(fmt.Sprintf("Attachments (%d):", len(atts))) + "\n")
 				for i, a := range atts {
-					content.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, a.String()))
+					content.WriteString("  " + attachmentItemStyle.Render(fmt.Sprintf("[%d] %s", i+1, a.String())) + "\n")
 				}
-				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' to open • Ctrl+d to download") + "\n")
+				content.WriteString("\n" + inlineHintStyle.Render("Press 'a' to open • Ctrl+d to download") + "\n")
 			}
 		}
 
@@ -670,9 +718,9 @@ func (m *UiStateModel) updateDetailViewport() {
 			if len(atts) > 0 {
 				content.WriteString(metaLabelStyle.Render(fmt.Sprintf("Attachments (%d):", len(atts))) + "\n")
 				for i, a := range atts {
-					content.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, a.String()))
+					content.WriteString("  " + attachmentItemStyle.Render(fmt.Sprintf("[%d] %s", i+1, a.String())) + "\n")
 				}
-				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'a' to open • Ctrl+d to download") + "\n")
+				content.WriteString("\n" + inlineHintStyle.Render("Press 'a' to open • Ctrl+d to download") + "\n")
 			}
 		}
 
@@ -703,7 +751,7 @@ func (m *UiStateModel) updateDetailViewport() {
 			}
 			if c.AlternateLink != "" {
 				content.WriteString("\n" + metaLabelStyle.Render("Classroom Link:") + "\n" + attachmentItemStyle.Render(c.AlternateLink) + "\n")
-				content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorPrimary).Italic(true).Render("Press 'o' or Enter to open in browser") + "\n")
+				content.WriteString("\n" + inlineHintStyle.Render("Press 'o' or Enter to open in browser") + "\n")
 			}
 		}
 	}
@@ -719,6 +767,10 @@ func (m UiStateModel) View() string {
 
 	if m.showHelp {
 		return renderHelpModal(m.width, m.height)
+	}
+
+	if m.showThemes {
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.renderThemePicker())
 	}
 
 	var viewStr string
@@ -762,9 +814,9 @@ func (m UiStateModel) renderHeader() string {
 
 	var rightHeader string
 	if m.loading {
-		rightHeader = lipgloss.NewStyle().Foreground(colorPrimary).Render(m.spinner.View() + " " + m.loadingMsg)
+		rightHeader = spinnerStyle.Render(m.spinner.View() + " " + m.loadingMsg)
 	} else {
-		rightHeader = lipgloss.NewStyle().Foreground(colorSubtle).Render("? for help")
+		rightHeader = headerHintStyle.Render("? for help")
 	}
 
 	space := m.width - lipgloss.Width(leftHeader) - lipgloss.Width(rightHeader) - 2
@@ -792,6 +844,7 @@ func (m UiStateModel) renderFooter() string {
 			helpKeyStyle.Render("Enter") + helpDescStyle.Render(" open  ") +
 			helpKeyStyle.Render("o") + helpDescStyle.Render(" web  ") +
 			helpKeyStyle.Render("/") + helpDescStyle.Render(" search  ") +
+			helpKeyStyle.Render("t") + helpDescStyle.Render(" theme  ") +
 			helpKeyStyle.Render("r") + helpDescStyle.Render(" refresh  ") +
 			helpKeyStyle.Render("q") + helpDescStyle.Render(" quit")
 	} else {
@@ -825,10 +878,7 @@ func (m *UiStateModel) renderCoursesView() string {
 	var searchBox string
 	if m.searching || m.searchInput.Value() != "" {
 		searchHeight = 1
-		searchBox = lipgloss.NewStyle().
-			Foreground(colorPrimary).
-			Background(lipgloss.Color("#1F2937")).
-			Padding(0, 1).
+		searchBox = searchBoxStyle.
 			Width(m.width).
 			Render(m.searchInput.View())
 	}
@@ -851,8 +901,7 @@ func (m *UiStateModel) renderCoursesView() string {
 		} else if m.searchInput.Value() != "" {
 			emptyMsg = fmt.Sprintf("No courses matching '%s'. Press Esc to clear filter.", m.searchInput.Value())
 		}
-		emptyBox := lipgloss.NewStyle().
-			Foreground(colorSubtle).
+		emptyBox := emptyStateStyle.
 			Width(m.width-4).
 			Height(cardHeight).
 			Padding(2, 4).
@@ -955,7 +1004,7 @@ func (m *UiStateModel) renderCoursesView() string {
 		if sepLen > 0 {
 			rightContent.WriteString("\n" + strings.Repeat("─", sepLen) + "\n\n")
 		}
-		rightContent.WriteString(lipgloss.NewStyle().Foreground(colorPrimary).Render("Press Enter to open course dashboard\nPress 'o' to open in Classroom web\nPress '/' to search/filter"))
+		rightContent.WriteString(inlineHintStyle.Render("Press Enter to open course dashboard\nPress 'o' to open in Classroom web\nPress '/' to search/filter"))
 
 		rightCard = cardStyle.Width(colWidth).Height(cardHeight).Render(rightContent.String())
 	}
@@ -1007,7 +1056,7 @@ func (m *UiStateModel) renderCourseDetailView() string {
 			tabBar.WriteString(tabInactiveStyle.Render("○ " + t.name))
 		}
 	}
-	tabBarLine := lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#111827")).Render(tabBar.String())
+	tabBarLine := tabBarStyle.Width(m.width).Render(tabBar.String())
 
 	// Height budget calculation
 	headerHeight := 3
@@ -1203,11 +1252,7 @@ func (m *UiStateModel) renderCourseDetailView() string {
 
 func (m UiStateModel) renderAttachmentPicker() string {
 	var content strings.Builder
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(colorWhite).
-		Background(colorPrimaryDim).
-		Padding(0, 2).
+	title := modalTitleStyle.
 		Render(func() string {
 			if m.pickerDownloadMode {
 				return "⬇ Select File to Download"
@@ -1233,9 +1278,152 @@ func (m UiStateModel) renderAttachmentPicker() string {
 	if m.pickerDownloadMode {
 		hint = "Press Enter to download • Esc to cancel"
 	}
-	content.WriteString("\n" + lipgloss.NewStyle().Foreground(colorSubtle).Italic(true).Render(hint))
+	content.WriteString("\n" + modalHintStyle.Render(hint))
 
 	return modalBoxStyle.Render(content.String())
+}
+
+// applyThemeLive applies a theme and refreshes the rendered panes.
+func (m *UiStateModel) applyThemeLive(t Theme) {
+	applyTheme(t)
+	m.spinner.Style = spinnerStyle
+	if m.State == viewCourseDetail {
+		m.updateDetailViewport()
+	}
+}
+
+// selectThemeCmd saves the choice and reports it.
+func (m *UiStateModel) selectThemeCmd(t Theme) tea.Cmd {
+	if err := utils.SaveTheme(t.Name); err != nil {
+		return flashStatusCmd(fmt.Sprintf("🎨 %s (not saved: %v)", t.Label, err), true)
+	}
+	return flashStatusCmd("🎨 Theme: "+t.Label, false)
+}
+
+func (m UiStateModel) renderThemePicker() string {
+	var content strings.Builder
+	content.WriteString(modalTitleStyle.Render(fmt.Sprintf("🎨 Themes (%d)", len(themes))) + "\n\n")
+
+	// Drop the preview and window the list on short terminals.
+	showPreview := m.height >= 34
+	maxRows := m.height - 6
+	if showPreview {
+		maxRows = m.height - 15
+	}
+
+	start, end := 0, len(themes)
+	if maxRows > 0 && len(themes) > maxRows {
+		start = m.themeCursor - maxRows/2
+		if start < 0 {
+			start = 0
+		}
+		end = start + maxRows
+		if end > len(themes) {
+			end = len(themes)
+			start = end - maxRows
+		}
+	}
+
+	if start > 0 {
+		content.WriteString(pickerRowStyle.Foreground(colorMuted).Render(fmt.Sprintf("  ↑ %d more", start)) + "\n")
+	}
+	for i := start; i < end; i++ {
+		t := themes[i]
+		cursor := "  "
+		if i == m.themeCursor {
+			cursor = "❯ "
+		}
+
+		// Pad by display width so wide labels don't pull the swatches left.
+		label := t.Label
+		pad := themeLabelWidth - lipgloss.Width(label) + 1
+		if pad < 0 {
+			pad = 0
+		}
+
+		// Fixed-width slot so the checkmark can't shift the swatch column.
+		marker := "  "
+		if t.Name == activeTheme.Name {
+			marker = "✓ "
+		}
+
+		row := fmt.Sprintf("%s%s%s%s%s", cursor, label, strings.Repeat(" ", pad), marker, themeSwatches(t))
+		if i == m.themeCursor {
+			content.WriteString(pickerRowSelStyle.Render(row) + "\n")
+		} else {
+			content.WriteString(pickerRowStyle.Render(row) + "\n")
+		}
+	}
+	if end < len(themes) {
+		content.WriteString(pickerRowStyle.Foreground(colorMuted).Render(fmt.Sprintf("  ↓ %d more", len(themes)-end)) + "\n")
+	}
+
+	hint := "Enter to save • j/k to preview • Esc to cancel"
+	if showPreview {
+		content.WriteString("\n" + m.renderThemePreview() + "\n")
+	}
+	content.WriteString("\n")
+	content.WriteString(modalHintStyle.Render(hint))
+
+	return modalBoxStyle.Render(content.String())
+}
+
+// renderThemePreview shows a mini version of the app in this palette.
+func (m UiStateModel) renderThemePreview() string {
+	// Painted by hand: nested Render calls would reset the card background.
+	card := newCanvas(activeTheme.Text, activeTheme.BgCard)
+
+	lines := []string{
+		card.paint(" 📚 CLASSROOM ", activeTheme.TextOnAccent, activeTheme.Primary),
+		"",
+		card.paint(" ● Assignments ", activeTheme.TextOnAccent, activeTheme.Primary) +
+			card.paint(" ○ Materials ", activeTheme.Subtle, activeTheme.BgTabInactive) +
+			card.paint(" ○ Info ", activeTheme.Subtle, activeTheme.BgTabInactive),
+		"",
+		card.paint(" ❯ Essay draft ", activeTheme.Primary, activeTheme.BgSelected),
+		card.paint("   Reading list", activeTheme.Text, activeTheme.BgCard),
+		"   " + card.paint(" Due: 2026-09-20 ", activeTheme.BadgeDueFg, activeTheme.BadgeDueBg) +
+			" " + card.paint(" 100 pts ", activeTheme.BadgePointsFg, activeTheme.BadgePointsBg) +
+			" " + card.paint(" 📎 2 ", activeTheme.BadgeAttachFg, activeTheme.BadgeAttachBg),
+		card.paint(" https://classroom.google.com/...", activeTheme.Secondary, activeTheme.BgCard),
+	}
+
+	// Fill every line so the card is painted edge to edge.
+	width := 0
+	for _, l := range lines {
+		if w := lipgloss.Width(l); w > width {
+			width = w
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString(card.fill("", width) + "\n")
+	for _, l := range lines {
+		b.WriteString(card.fill(" "+l, width+1) + "\n")
+	}
+	b.WriteString(card.fill("", width))
+
+	return previewCardStyle.Render(b.String())
+}
+
+// themeSwatches draws the palette's accents as dots. No resets, so the
+// enclosing row keeps its background.
+func themeSwatches(t Theme) string {
+	var b strings.Builder
+	for _, hex := range themeSwatchAccents(t) {
+		b.WriteString(sgrSeq(hex, false))
+		b.WriteString("●")
+	}
+	// Reset the foreground only, so the last dot doesn't bleed.
+	if colorsEnabled() {
+		b.WriteString(termenv.CSI + "39m")
+	}
+	return b.String()
+}
+
+// themeSwatchAccents lists the colors shown as dots.
+func themeSwatchAccents(t Theme) []string {
+	return []string{t.Primary, t.Secondary, t.Accent, t.Purple, t.Cyan, t.Danger}
 }
 
 func min(a, b int) int {

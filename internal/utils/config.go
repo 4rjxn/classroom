@@ -73,6 +73,7 @@ Or export the following environment variables:
 Example 'config.toml' format:
   client_id = "your-google-oauth-client-id"
   client_secret = "your-google-oauth-client-secret"
+  theme = "nord"            # optional: pick a UI theme (press T in-app to browse)
 
 To obtain Google OAuth Credentials:
   1. Go to Google Cloud Console: https://console.cloud.google.com/
